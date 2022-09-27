@@ -15,9 +15,17 @@ namespace FileOnLib
 
             Directories = new List<DirectoryInfo>();
 
-            Directories.Add(new DirectoryInfo(@"C:\temp\monitor1"));
-            Directories.Add(new DirectoryInfo(@"C:\temp\monitor2"));
-            Directories.Add(new DirectoryInfo(@"C:\temp\monitor3"));
+            var folders = _configuration.GetSection("DirectoryMonitor:DirectoriesToMonitor").Get<List<string>>();
+
+            foreach (var folder in folders)
+            {
+                var folderInfo = new DirectoryInfo(folder);
+
+                if (folderInfo.Exists)
+                    Directories.Add(folderInfo);
+                else
+                    Console.WriteLine($"Warning skipping non-existent folder {folderInfo.FullName}");
+            }
         }
 
         public List<DirectoryInfo> Directories { get; set; }
@@ -52,31 +60,33 @@ namespace FileOnLib
             Console.WriteLine($"Calling stop async on directory monitor");
             return Task.Run(StopMonitor);
         }
-
+        
         // Define the event handlers.  
         public async void OnChanged(object source, FileSystemEventArgs e)
         {
-            Console.WriteLine("{0}, with path {1} has been {2}", e.Name, e.FullPath, e.ChangeType);
+            Console.WriteLine("Detected {0} in file {1}, with path {2}", e.ChangeType, e.Name, e.FullPath);
 
-            var createRequest = new CreateRequest(e.FullPath);
+            var fileInfo = new FileInfo(e.FullPath);
+            var url = _configuration.GetSection("GlobalAppSettings:Url").Value + "/Files";
 
+            // these events are also raised for directory changes, so by wrapping in fileinfo we can check the type safely.
+            if (!fileInfo.Exists)
+                return;
+
+            // put filepath into usable format for web request
             var requestDict = new Dictionary<string, string>();
-            requestDict.Add("fullPath", e.FullPath);
-            var myJson = JsonConvert.SerializeObject(requestDict);
+            requestDict.Add("fullPath", fileInfo.FullName);
+            var filePath = JsonConvert.SerializeObject(requestDict);
 
-            using (var client = new HttpClient())
-            {
-                var response = await client.PostAsync(
-                    "http://localhost:4000/Files",
-                     new StringContent(myJson, Encoding.UTF8, "application/json"));
-
-                Console.WriteLine(response.ToString());
-            }
+            var response = await client.PostAsync(url, new StringContent(filePath, Encoding.UTF8, "application/json"));
+            Console.WriteLine($"Archived file: {fileInfo.Name} with status {response.StatusCode}");
         }
 
         public void OnRenamed(object source, RenamedEventArgs e)
         {
             Console.WriteLine(" {0} renamed to {1}", e.OldFullPath, e.FullPath);
+
+            // TODO logic to streamline interactions when renaming folders etc
         }
 
         void ConfigureFileWatcher(DirectoryInfo folder)
@@ -86,12 +96,9 @@ namespace FileOnLib
                 Console.WriteLine($"Folder {folder.FullName} doesnt exist, skipping");
                 return;
             }
-
-            // Create a new FileSystemWatcher and set its properties.  
+  
             FileSystemWatcher watcher = new FileSystemWatcher();
             watcher.Path = folder.FullName;
-
-            // Watch both files and subdirectories.  
             watcher.IncludeSubdirectories = true;
             // Watch for all changes specified in the NotifyFilters  
             //enumeration.  

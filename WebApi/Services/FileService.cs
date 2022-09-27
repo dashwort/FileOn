@@ -12,22 +12,22 @@ namespace WebApi.Services
     {
         DataContext _context;
         readonly IMapper _mapper;
+        IConfiguration _configuration;
 
         public DirectoryInfo FileArchiveLocation { get; set; }
 
-        public event EventHandler FileChanged;
-
-        public FileService(DataContext context, IMapper mapper)
+        public FileService(DataContext context, IMapper mapper, IConfiguration configuration)
         {
             _context = context;
             _mapper = mapper;
+            _configuration = configuration;
 
-            FileArchiveLocation = new DirectoryInfo(@"C:\temp\FileOn\FileArchive");
+            var folder = _configuration.GetSection("FileService:FileArchive").Value;
+
+            FileArchiveLocation = new DirectoryInfo(folder);
 
             if (!FileArchiveLocation.Exists)
                 FileArchiveLocation.Create();
-
-            FileChanged += HandleFileChange;
         }
 
         void HandleFileChange(object sender, EventArgs e)
@@ -136,6 +136,9 @@ namespace WebApi.Services
 
                 fileObj.Refresh();
                 success = fileObj.Exists;
+
+                if (success)
+                    Console.WriteLine($"Succesfully copied file {fileObj.Name} to path: {outputFolder.Parent.FullName}");
             }
             catch (Exception ex)
             {
