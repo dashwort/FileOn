@@ -5,6 +5,16 @@ using WebApi.Entities;
 
 public class CreateRequest
 {
+    public CreateRequest()
+    {
+
+    }
+
+    public CreateRequest(string pullpath)
+    {
+        FullPath = pullpath;
+    }
+
     public int Id { get; set; }
     public string Name { get; set; }
 

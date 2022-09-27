@@ -10,9 +10,12 @@ namespace WebApi.Services
 {
     public class FileService : IFileService
     {
-        private DataContext _context;
-        private readonly IMapper _mapper;
+        DataContext _context;
+        readonly IMapper _mapper;
+
         public DirectoryInfo FileArchiveLocation { get; set; }
+
+        public event EventHandler FileChanged;
 
         public FileService(DataContext context, IMapper mapper)
         {
@@ -23,6 +26,22 @@ namespace WebApi.Services
 
             if (!FileArchiveLocation.Exists)
                 FileArchiveLocation.Create();
+
+            FileChanged += HandleFileChange;
+        }
+
+        void HandleFileChange(object sender, EventArgs e)
+        {
+            Console.WriteLine($"Called handle file change");
+
+            var createRequest = sender as CreateRequest;
+
+            if (createRequest != null)
+            {
+                Console.WriteLine("Raising createRequest to FileService");
+
+                this.Create(createRequest);
+            }
         }
 
         public IEnumerable<FFile> GetAll()
@@ -54,7 +73,7 @@ namespace WebApi.Services
                 Console.WriteLine("File already exists, skipping that mofo");
                 return;
             }
-                
+
 
             bool success = CreateCopy(model.FullPath, out string outputPath);
 
@@ -137,6 +156,7 @@ namespace WebApi.Services
                 }
             }
         }
+
 
     }
 }

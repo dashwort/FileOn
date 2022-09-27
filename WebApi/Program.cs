@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using FileOnLib;
+using System.Text.Json.Serialization;
 using WebApi.Helpers;
 using WebApi.Services;
 using WebApi.Services.Interface;
@@ -23,10 +24,19 @@ var builder = WebApplication.CreateBuilder(args);
     services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
     // configure DI for application services
-    services.AddScoped<IFileService, FileService>();
+    services.AddTransient<IFileService, FileService>();
+
+    // add the directory monitor and starts it running
+    services.AddHostedService<DirectoryMonitor>()
+    .AddSingleton<DirectoryMonitor>(x => x
+        .GetServices<IHostedService>()
+        .OfType<DirectoryMonitor>()
+        .First());
+
 }
 
 var app = builder.Build();
+
 
 // configure HTTP request pipeline
 {

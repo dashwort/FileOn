@@ -7,6 +7,8 @@ namespace WebApi.Services.Interface
     {
         DirectoryInfo FileArchiveLocation { get; set; }
 
+        event EventHandler FileChanged;
+
         void Create(CreateRequest model);
         void Delete(int id);
         IEnumerable<FFile> GetAll();
