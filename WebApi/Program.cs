@@ -33,6 +33,12 @@ var builder = WebApplication.CreateBuilder(args);
         .OfType<DirectoryMonitor>()
         .First());
 
+    services.AddHostedService<FileTransferService>()
+    .AddSingleton<FileTransferService>(x => x
+        .GetServices<IHostedService>()
+        .OfType<FileTransferService>()
+        .First());
+
 }
 
 var app = builder.Build();

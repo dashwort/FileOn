@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using WebApi.Entities;
@@ -16,6 +17,8 @@ namespace WebApi.Services
 
         public DirectoryInfo FileArchiveLocation { get; set; }
 
+        static ConcurrentDictionary<string, bool> WorkItems = new ConcurrentDictionary<string, bool>();
+
         public FileService(DataContext context, IMapper mapper, IConfiguration configuration)
         {
             _context = context;
@@ -25,23 +28,10 @@ namespace WebApi.Services
             var folder = _configuration.GetSection("FileService:FileArchive").Value;
 
             FileArchiveLocation = new DirectoryInfo(folder);
+           
 
             if (!FileArchiveLocation.Exists)
                 FileArchiveLocation.Create();
-        }
-
-        void HandleFileChange(object sender, EventArgs e)
-        {
-            Console.WriteLine($"Called handle file change");
-
-            var createRequest = sender as CreateRequest;
-
-            if (createRequest != null)
-            {
-                Console.WriteLine("Raising createRequest to FileService");
-
-                this.Create(createRequest);
-            }
         }
 
         public IEnumerable<FFile> GetAll()
@@ -58,8 +48,17 @@ namespace WebApi.Services
         {
             var modelFile = new FileInfo(model.FullPath);
 
+            // we carry out two checks as these events can file at any moment and the file monitor can trigger multiple events in quick succession. 
+            // Dictionary in memory is used as a rapid WIP cache to prevent duplication
+            // The search against the copy jobs is to ensure that we're not duplicating efforts 
+            bool insertSuccess = WorkItems.TryAdd(modelFile.FullName, false);
+
+
+            if (_context.CopyJobs.Any(x => x.PathToFile == model.FullPath) && !insertSuccess)
+                return;
+
             if (!modelFile.Exists)
-                throw new ApplicationException("File doesnt exist or is not a valid file path e.g. folder");
+            throw new ApplicationException("File doesnt exist or is not a valid file path e.g. folder");
 
             model.Hash = CalculateMD5(model.FullPath);
             model.ParentFolder = modelFile.DirectoryName;
@@ -67,9 +66,12 @@ namespace WebApi.Services
             model.Extension = modelFile.Extension;
             model.Iszip = false;
 
+            
 
-            if (_context.FFiles.Any(x => x.Hash == model.Hash))
+            if (_context.FFiles.Any(x => x.Hash == model.Hash) && 
+                _context.FFiles.Any(x => x.ParentFolder == model.ParentFolder))
             {
+
                 Console.WriteLine("File already exists, skipping that mofo");
                 return;
             }
@@ -87,6 +89,23 @@ namespace WebApi.Services
                 // save FFile
                 _context.FFiles.Add(file);
                 _context.SaveChanges();
+                WorkItems[modelFile.FullName] = true;
+
+                var job = new CopyJob();
+
+                job.PathToFile = file.FullPath;
+                job.ArchivePath = file.ArchivePath;
+                job.IdToUpdate = file.Id;
+                job.Retries = 0;
+
+                _context.CopyJobs.Update(job);
+                _context.SaveChanges(true);
+
+                // TODO add check to clean up dictionary if required
+                WorkItems.Remove(model.FullPath, out success);
+
+                if(!success)
+                    Console.WriteLine($"Warning {model.Name} is getting stuck in the work items");
             }
 
         }
@@ -110,9 +129,10 @@ namespace WebApi.Services
         DirectoryInfo GetArchivePath()
         {
             string base64Guid = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            base64Guid = base64Guid.Replace("\\", "/");
 
             var path = Path.Combine(FileArchiveLocation.FullName, base64Guid);
-
+            
             return new DirectoryInfo(path);
         }
 
@@ -132,10 +152,9 @@ namespace WebApi.Services
                 outputPath = Path.Combine(outputFolder.FullName, fileObj.Name);
 
                 outputFolder.Create();
-                File.Copy(fileObj.FullName, outputPath);
-
-                fileObj.Refresh();
-                success = fileObj.Exists;
+                outputFolder.Refresh();
+                
+                success = outputFolder.Exists;
 
                 if (success)
                     Console.WriteLine($"Succesfully copied file {fileObj.Name} to path: {outputFolder.Parent.FullName}");
@@ -148,7 +167,7 @@ namespace WebApi.Services
             return success;
         }
 
-        string CalculateMD5(string filename)
+        public static string CalculateMD5(string filename)
         {
             using (var md5 = MD5.Create())
             {
@@ -158,6 +177,13 @@ namespace WebApi.Services
                     return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
                 }
             }
+        }
+
+        public static async Task CopyFileAsync(string sourceFile, string destinationFile)
+        {
+            using (var sourceStream = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
+            using (var destinationStream = new FileStream(destinationFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                await sourceStream.CopyToAsync(destinationStream);
         }
 
 

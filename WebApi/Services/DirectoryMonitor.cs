@@ -64,7 +64,7 @@ namespace FileOnLib
         // Define the event handlers.  
         public async void OnChanged(object source, FileSystemEventArgs e)
         {
-            Console.WriteLine("Detected {0} in file {1}, with path {2}", e.ChangeType, e.Name, e.FullPath);
+            Console.WriteLine("Detected type: {0} in file: {1}, with path: {2}", e.ChangeType, e.Name, e.FullPath);
 
             var fileInfo = new FileInfo(e.FullPath);
             var url = _configuration.GetSection("GlobalAppSettings:Url").Value + "/Files";

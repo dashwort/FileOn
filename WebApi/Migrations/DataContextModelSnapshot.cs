@@ -16,6 +16,32 @@ namespace WebApi.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "6.0.9");
 
+            modelBuilder.Entity("WebApi.Entities.CopyJob", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ArchivePath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("IdToUpdate")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PathToFile")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Retries")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("processed")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CopyJobs");
+                });
+
             modelBuilder.Entity("WebApi.Entities.FFile", b =>
                 {
                     b.Property<int>("Id")

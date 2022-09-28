@@ -19,4 +19,5 @@ public class DataContext : DbContext
     }
 
     public DbSet<FFile> FFiles { get; set; }
+    public DbSet<CopyJob> CopyJobs { get; set; }
 }
