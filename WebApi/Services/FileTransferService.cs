@@ -61,7 +61,7 @@ namespace WebApi.Services
 
                     var copyPath = new FileInfo(job.PathToFile);
 
-                    if (copyPath.Exists && !IsFileLocked(copyPath))
+                    if (copyPath.Exists && !FileService.IsFileLocked(copyPath))
                     {
                         await FileService.CopyFileAsync(job.PathToFile, job.ArchivePath);
 
@@ -98,26 +98,5 @@ namespace WebApi.Services
             ProcessCopyJobs?.Start();
         }
 
-        bool IsFileLocked(FileInfo file)
-        {
-            try
-            {
-                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
-                {
-                    stream.Close();
-                }
-            }
-            catch (IOException)
-            {
-                return true;
-            }
-            catch (Exception ex)
-            {
-                return false;
-            }
-
-            //file is not locked
-            return false;
-        }
     }
 }

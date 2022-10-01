@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json;
 using System.Text;
+using WebApi.Helpers;
 using WebApi.Models.FFiles;
+using WebApi.Services;
 using WebApi.Services.Interface;
 
 namespace FileOnLib
@@ -8,10 +10,13 @@ namespace FileOnLib
     public class DirectoryMonitor : IHostedService
     {
         IConfiguration _configuration;
-        public DirectoryMonitor(IConfiguration configuration)
+        IServiceScopeFactory _scopeFactory;
+
+        public DirectoryMonitor(IConfiguration configuration, IServiceScopeFactory scope)
         {
             Console.WriteLine($"Starting directory monitor service");
             _configuration = configuration;
+            _scopeFactory = scope;
 
             Directories = new List<DirectoryInfo>();
 
@@ -64,22 +69,23 @@ namespace FileOnLib
         // Define the event handlers.  
         public async void OnChanged(object source, FileSystemEventArgs e)
         {
-            Console.WriteLine("Detected type: {0} in file: {1}, with path: {2}", e.ChangeType, e.Name, e.FullPath);
 
-            var fileInfo = new FileInfo(e.FullPath);
-            var url = _configuration.GetSection("GlobalAppSettings:Url").Value + "/Files";
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var _context = scope.ServiceProvider.GetRequiredService<IFileService>();
 
-            // these events are also raised for directory changes, so by wrapping in fileinfo we can check the type safely.
-            if (!fileInfo.Exists)
-                return;
+                Console.WriteLine("Detected type: {0} in file: {1}, with path: {2}", e.ChangeType, e.Name, e.FullPath);
 
-            // put filepath into usable format for web request
-            var requestDict = new Dictionary<string, string>();
-            requestDict.Add("fullPath", fileInfo.FullName);
-            var filePath = JsonConvert.SerializeObject(requestDict);
+                var fileInfo = new FileInfo(e.FullPath);
 
-            var response = await client.PostAsync(url, new StringContent(filePath, Encoding.UTF8, "application/json"));
-            Console.WriteLine($"Archived file: {fileInfo.Name} with status {response.StatusCode}");
+                if (!fileInfo.Exists)
+                    return;
+
+                var model = new CreateRequest(fileInfo.FullName);
+
+                await Task.Run(() => { _context.Create(model); });
+            }
+
         }
 
         public void OnRenamed(object source, RenamedEventArgs e)
