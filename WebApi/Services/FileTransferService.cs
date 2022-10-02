@@ -53,41 +53,54 @@ namespace WebApi.Services
 
                 var jobs = _context.CopyJobs.Where(x => x.processed == false).ToList();
 
-                Console.WriteLine($"Calling handle copy jobs, number of jobs to process: {jobs.Count}");
+                if (jobs.Any())
+                    Console.WriteLine($"Calling handle copy jobs, number of jobs to process: {jobs.Count}");
 
                 foreach (var job in jobs)
                 {
-                    Console.WriteLine($"Processing job with ID: {job.Id}, archive path: {job.ArchivePath}");
-
-                    var copyPath = new FileInfo(job.PathToFile);
-
-                    if (copyPath.Exists && !FileService.IsFileLocked(copyPath))
+                    try
                     {
-                        await FileService.CopyFileAsync(job.PathToFile, job.ArchivePath);
+                        Console.WriteLine($"Processing job with ID: {job.Id}, archive path: {job.ArchivePath}");
 
-                        var ffile = _context.FFiles.Find(job.IdToUpdate);
+                        var copyPath = new FileInfo(job.PathToFile);
 
-                        var checksumOfCopiedFile = FileService.CalculateMD5(job.ArchivePath);
-
-                        if (checksumOfCopiedFile == ffile.Hash)
+                        if (copyPath.Exists && !FileService.IsFileLocked(copyPath))
                         {
-                            job.processed = true;
-                            Console.WriteLine($"Verified job with ID: {job.Id}");
+                            var parent = Path.GetDirectoryName(job.ArchivePath);
+
+                            if (!Directory.Exists(parent))
+                                Directory.CreateDirectory(parent);
+
+                            await FileService.CopyFileAsync(job.PathToFile, job.ArchivePath);
+
+                            var ffile = _context.FFiles.Find(job.IdToUpdate);
+
+                            var checksumOfCopiedFile = FileService.CalculateMD5(job.ArchivePath);
+
+                            if (checksumOfCopiedFile == ffile.Hash)
+                            {
+                                job.processed = true;
+                                Console.WriteLine($"Verified copy job with ID: {job.Id}");
+                            }
+                            else
+                            {
+                                File.Delete(job.PathToFile);
+                                job.Retries++;
+                            }
+
                         }
                         else
                         {
-                            File.Delete(job.PathToFile);
                             job.Retries++;
                         }
 
+                        _context.Update(job);
+                        _context.SaveChanges();
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        job.Retries++;
+                        Console.WriteLine($"Error during copy job {ex.Message}");
                     }
-
-                    _context.Update(job);
-                    _context.SaveChanges();
                 }
             }
         }

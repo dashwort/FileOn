@@ -1,5 +1,7 @@
 ﻿using Newtonsoft.Json;
+using System.IO;
 using System.Text;
+using WebApi.Entities;
 using WebApi.Helpers;
 using WebApi.Models.FFiles;
 using WebApi.Services;
@@ -35,14 +37,28 @@ namespace FileOnLib
 
         public List<DirectoryInfo> Directories { get; set; }
         List<FileSystemWatcher> fileSystemWatchers = new List<FileSystemWatcher>();
-        private static readonly HttpClient client = new HttpClient();
 
-        void StartMonitor()
+        async Task StartMonitor()
         {
-            foreach (var folder in Directories)
+
+            using (var scope = _scopeFactory.CreateScope())
             {
-                ConfigureFileWatcher(folder);
+                var _context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                foreach (var folder in Directories)
+                {
+                    var ffolder = new FFolder(folder);
+
+
+
+                    _context.FFolders.Add(ffolder);
+
+                    ConfigureFileWatcher(folder);
+                }
+
+                await _context.SaveChangesAsync();
             }
+
         }
 
         void StopMonitor()
@@ -56,7 +72,6 @@ namespace FileOnLib
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            Console.WriteLine("Start Async called on Directory monitor");
             return Task.Run(StartMonitor);
         }
 
@@ -69,21 +84,23 @@ namespace FileOnLib
         // Define the event handlers.  
         public async void OnChanged(object source, FileSystemEventArgs e)
         {
+            var fileInfo = new FileInfo(e.FullPath);
+
+            if (!fileInfo.Exists)
+                return;
 
             using (var scope = _scopeFactory.CreateScope())
             {
-                var _context = scope.ServiceProvider.GetRequiredService<IFileService>();
+                var fileService = scope.ServiceProvider.GetRequiredService<IFileService>();
+                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
 
                 Console.WriteLine("Detected type: {0} in file: {1}, with path: {2}", e.ChangeType, e.Name, e.FullPath);
 
-                var fileInfo = new FileInfo(e.FullPath);
-
-                if (!fileInfo.Exists)
-                    return;
-
                 var model = new CreateRequest(fileInfo.FullName);
 
-                await Task.Run(() => { _context.Create(model); });
+                var folder = await context.FFolders.FindAsync(1);
+
+                await Task.Run(() => { fileService.Create(model); });
             }
 
         }
@@ -102,7 +119,8 @@ namespace FileOnLib
                 Console.WriteLine($"Folder {folder.FullName} doesnt exist, skipping");
                 return;
             }
-  
+
+            Console.WriteLine($"Starting to watch folder: {folder.FullName}");
             FileSystemWatcher watcher = new FileSystemWatcher();
             watcher.Path = folder.FullName;
             watcher.IncludeSubdirectories = true;
@@ -115,8 +133,8 @@ namespace FileOnLib
             NotifyFilters.LastAccess |
             NotifyFilters.LastWrite;
 
-            // Watch all files.  
-            watcher.Filter = "*.*";
+            // Watch all files. Handle filtering in onchange event as filter doesnt support more than one extension.
+            watcher.Filter = "*";
 
             // Add event handlers.  
             watcher.Changed += new FileSystemEventHandler(OnChanged);

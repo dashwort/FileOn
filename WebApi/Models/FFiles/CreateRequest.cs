@@ -10,9 +10,9 @@ public class CreateRequest
 
     }
 
-    public CreateRequest(string pullpath)
+    public CreateRequest(string fullpath)
     {
-        FullPath = pullpath;
+        FullPath = fullpath;
     }
 
     public int Id { get; set; }
@@ -23,7 +23,9 @@ public class CreateRequest
     public string ParentFolder { get; set; }
     public string Hash { get; set; }
 
-    public string CreationTime { get; set; }
+    public DateTime CreationTime { get; set; }
+    public DateTime LastModified { get; set; }
+    public long Size { get; set; }
     public string Extension { get; set; }
 
     public string ArchivePath  { get; set; }

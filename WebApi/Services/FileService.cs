@@ -14,8 +14,9 @@ namespace WebApi.Services
         DataContext _context;
         readonly IMapper _mapper;
         IConfiguration _configuration;
+        static IConfiguration _staticConfiguration;
 
-        public DirectoryInfo FileArchiveLocation { get; set; }
+        public static DirectoryInfo FileArchiveLocation { get; set; } 
 
         static ConcurrentDictionary<string, bool> WorkItems = new ConcurrentDictionary<string, bool>();
 
@@ -24,6 +25,7 @@ namespace WebApi.Services
             _context = context;
             _mapper = mapper;
             _configuration = configuration;
+            _staticConfiguration = _configuration;
 
             var folder = _configuration.GetSection("FileService:FileArchive").Value;
 
@@ -71,7 +73,9 @@ namespace WebApi.Services
 
                 model.Hash = CalculateMD5(model.FullPath);
                 model.ParentFolder = modelFile.DirectoryName;
-                model.CreationTime = modelFile.CreationTimeUtc.ToShortDateString();
+                model.CreationTime = modelFile.CreationTimeUtc;
+                model.LastModified = modelFile.LastWriteTimeUtc;
+                model.Size = modelFile.Length;
                 model.Extension = modelFile.Extension;
                 model.Iszip = false;
 
@@ -146,7 +150,7 @@ namespace WebApi.Services
             return file;
         }
 
-        DirectoryInfo GetArchivePath()
+        public static DirectoryInfo GetArchivePath()
         {
             string base64Guid = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
             base64Guid = new string((from c in base64Guid where char.IsWhiteSpace(c) 
@@ -157,7 +161,7 @@ namespace WebApi.Services
             return new DirectoryInfo(path);
         }
 
-        bool CreateCopyFolder(string file, out string outputPath)
+        public static bool CreateCopyFolder(string file, out string outputPath)
         {
             bool success = false;
             outputPath = string.Empty;
@@ -172,10 +176,7 @@ namespace WebApi.Services
                 var outputFolder = GetArchivePath();
                 outputPath = Path.Combine(outputFolder.FullName, fileObj.Name);
 
-                outputFolder.Create();
-                outputFolder.Refresh();
-                
-                success = outputFolder.Exists;
+                return true;
             }
             catch (Exception)
             {

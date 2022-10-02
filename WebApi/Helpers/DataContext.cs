@@ -20,4 +20,6 @@ public class DataContext : DbContext
 
     public DbSet<FFile> FFiles { get; set; }
     public DbSet<CopyJob> CopyJobs { get; set; }
+
+    public DbSet<FFolder> FFolders { get; set; }
 }

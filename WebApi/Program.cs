@@ -1,5 +1,6 @@
 ﻿using FileOnLib;
 using System.Text.Json.Serialization;
+using WebApi.Entities;
 using WebApi.Helpers;
 using WebApi.Services;
 using WebApi.Services.Interface;
@@ -39,9 +40,17 @@ var builder = WebApplication.CreateBuilder(args);
         .OfType<FileTransferService>()
         .First());
 
+    
+
 }
 
 var app = builder.Build();
+
+
+// Instantiate static properties on first launch
+var scope = app.Services.CreateScope();
+scope.ServiceProvider.GetRequiredService<IFileService>();
+
 
 
 // configure HTTP request pipeline
