@@ -1,10 +1,10 @@
 ﻿using Newtonsoft.Json;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using WebApi.Entities;
 using WebApi.Helpers;
 using WebApi.Models.FFiles;
-using WebApi.Services;
 using WebApi.Services.Interface;
 
 namespace FileOnLib
@@ -13,12 +13,14 @@ namespace FileOnLib
     {
         IConfiguration _configuration;
         IServiceScopeFactory _scopeFactory;
+        
 
         public DirectoryMonitor(IConfiguration configuration, IServiceScopeFactory scope)
         {
             Console.WriteLine($"Starting directory monitor service");
             _configuration = configuration;
             _scopeFactory = scope;
+            
 
             Directories = new List<DirectoryInfo>();
 
@@ -38,27 +40,27 @@ namespace FileOnLib
         public List<DirectoryInfo> Directories { get; set; }
         List<FileSystemWatcher> fileSystemWatchers = new List<FileSystemWatcher>();
 
-        async Task StartMonitor()
+        void StartMonitor()
         {
+            var watch = new Stopwatch();
+            watch.Start();
 
             using (var scope = _scopeFactory.CreateScope())
             {
-                var _context = scope.ServiceProvider.GetRequiredService<DataContext>();
+                var directoryService = scope.ServiceProvider.GetRequiredService<IDirectoryService>();
 
                 foreach (var folder in Directories)
                 {
-                    var ffolder = new FFolder(folder);
+                    directoryService.Create(folder);
 
-
-
-                    _context.FFolders.Add(ffolder);
+                    directoryService.ScanForChanges(folder);
 
                     ConfigureFileWatcher(folder);
                 }
-
-                await _context.SaveChangesAsync();
             }
 
+            watch.Stop();
+            Console.WriteLine($"Start monitor service took {watch.ElapsedMilliseconds}ms");
         }
 
         void StopMonitor()
@@ -86,6 +88,8 @@ namespace FileOnLib
         {
             var fileInfo = new FileInfo(e.FullPath);
 
+            Console.WriteLine($"");
+
             if (!fileInfo.Exists)
                 return;
 
@@ -96,7 +100,7 @@ namespace FileOnLib
 
                 Console.WriteLine("Detected type: {0} in file: {1}, with path: {2}", e.ChangeType, e.Name, e.FullPath);
 
-                var model = new CreateRequest(fileInfo.FullName);
+                var model = new CreateRequest(fileInfo.FullName) { ParentFolder = ""};
 
                 var folder = await context.FFolders.FindAsync(1);
 
@@ -124,22 +128,16 @@ namespace FileOnLib
             FileSystemWatcher watcher = new FileSystemWatcher();
             watcher.Path = folder.FullName;
             watcher.IncludeSubdirectories = true;
+
             // Watch for all changes specified in the NotifyFilters  
             //enumeration.  
-            watcher.NotifyFilter = NotifyFilters.Attributes |
-            NotifyFilters.CreationTime |
-            NotifyFilters.DirectoryName |
-            NotifyFilters.FileName |
-            NotifyFilters.LastAccess |
-            NotifyFilters.LastWrite;
+            watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size;
 
             // Watch all files. Handle filtering in onchange event as filter doesnt support more than one extension.
             watcher.Filter = "*";
 
             // Add event handlers.  
             watcher.Changed += new FileSystemEventHandler(OnChanged);
-            watcher.Created += new FileSystemEventHandler(OnChanged);
-            watcher.Renamed += new RenamedEventHandler(OnRenamed);
 
             //Start monitoring.  
             watcher.EnableRaisingEvents = true;

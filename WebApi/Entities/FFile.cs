@@ -1,4 +1,5 @@
-﻿using WebApi.Models.FFiles;
+﻿using System.ComponentModel.DataAnnotations;
+using WebApi.Models.FFiles;
 using WebApi.Services;
 
 namespace WebApi.Entities
@@ -26,9 +27,7 @@ namespace WebApi.Entities
             this.LastModified = fi.LastWriteTimeUtc;
             this.Size = fi.Length;
             this.Extension = fi.Extension;
-
-            if (FileService.CreateCopyFolder(fi.FullName, out string path))
-                this.ArchivePath = path;
+            this.ArchivePath = FileService.GetCopyPath(fi.FullName);
 
             if (this.Extension.ToLower() == ".zip")
                 this.Iszip = true;
@@ -40,6 +39,9 @@ namespace WebApi.Entities
         }
 
         public int Id { get; set; }
+
+        [Required]
+        public FFolder FFolder { get; set; }
         public string Name { get; set; }
         public string FullPath { get; set; }
         public string ParentFolder { get; set; }

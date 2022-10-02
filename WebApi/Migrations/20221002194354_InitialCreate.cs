@@ -48,6 +48,7 @@ namespace WebApi.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    FFolderId = table.Column<int>(type: "INTEGER", nullable: false),
                     Name = table.Column<string>(type: "TEXT", nullable: true),
                     FullPath = table.Column<string>(type: "TEXT", nullable: true),
                     ParentFolder = table.Column<string>(type: "TEXT", nullable: true),
@@ -57,8 +58,7 @@ namespace WebApi.Migrations
                     Size = table.Column<long>(type: "INTEGER", nullable: false),
                     Extension = table.Column<string>(type: "TEXT", nullable: true),
                     ArchivePath = table.Column<string>(type: "TEXT", nullable: true),
-                    Iszip = table.Column<bool>(type: "INTEGER", nullable: false),
-                    FFolderId = table.Column<int>(type: "INTEGER", nullable: true)
+                    Iszip = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -67,7 +67,8 @@ namespace WebApi.Migrations
                         name: "FK_FFiles_FFolders_FFolderId",
                         column: x => x.FFolderId,
                         principalTable: "FFolders",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(

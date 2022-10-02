@@ -14,9 +14,9 @@ namespace WebApi.Services
         DataContext _context;
         readonly IMapper _mapper;
         IConfiguration _configuration;
-        static IConfiguration _staticConfiguration;
+        static IConfiguration _staticConfiguration;   
 
-        public static DirectoryInfo FileArchiveLocation { get; set; } 
+        public static DirectoryInfo FileArchiveLocation { get; set; }
 
         static ConcurrentDictionary<string, bool> WorkItems = new ConcurrentDictionary<string, bool>();
 
@@ -30,7 +30,7 @@ namespace WebApi.Services
             var folder = _configuration.GetSection("FileService:FileArchive").Value;
 
             FileArchiveLocation = new DirectoryInfo(folder);
-           
+
 
             if (!FileArchiveLocation.Exists)
                 FileArchiveLocation.Create();
@@ -78,58 +78,36 @@ namespace WebApi.Services
                 model.Size = modelFile.Length;
                 model.Extension = modelFile.Extension;
                 model.Iszip = false;
+                model.ArchivePath = FileService.GetCopyPath(model.FullPath);
 
 
+                var parentFolder = _context.FFolders.
+                    Where(x => x.Path.ToLower() == model.ParentFolder.ToLower())
+                    .FirstOrDefault();
 
-                if (_context.FFiles.Any(x => x.Hash == model.Hash) &&
-                    _context.FFiles.Any(x => x.ParentFolder == model.ParentFolder))
-                {
+                model.FFolder = parentFolder;
 
-                    Console.WriteLine("File already exists, skipping that mofo");
+                if (CheckIfDuplicate(model))
                     return;
-                }
 
+                // map model to new ffile object
+                var file = _mapper.Map<FFile>(model);
 
-                bool success = CreateCopyFolder(model.FullPath, out string outputPath);
+                // save FFile
+                _context.FFiles.Add(file);
+                _context.SaveChanges();
+                WorkItems[modelFile.FullName] = true;
 
-                if (success)
-                {
-                    model.ArchivePath = outputPath;
+                CreateCopyJob(file);
 
-                    if (_context.CopyJobs.Any(x => x.PathToFile == model.FullPath))
-                    {
-                        Console.WriteLine($"Duplicate copy job detected");
-                        return;
-                    }
+                // TODO add check to clean up dictionary if required
+                WorkItems.TryRemove(model.FullPath, out bool success);
 
-                    // map model to new ffile object
-                    var file = _mapper.Map<FFile>(model);
-
-                    // save FFile
-                    _context.FFiles.Add(file);
-                    _context.SaveChanges();
-                    WorkItems[modelFile.FullName] = true;
-
-                    var job = new CopyJob();
-
-                    job.PathToFile = file.FullPath;
-                    job.ArchivePath = file.ArchivePath;
-                    job.IdToUpdate = file.Id;
-                    job.Retries = 0;
-
-                    _context.CopyJobs.Update(job);
-                    _context.SaveChanges(true);
-
-                    // TODO add check to clean up dictionary if required
-                    WorkItems.TryRemove(model.FullPath, out success);
-
-                    if (!success)
-                        Console.WriteLine($"Warning {model.Name} is getting stuck in the work items");
-                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during copy process {ex.Message}");
+                WorkItems.TryRemove(model.FullPath, out bool success);
             }
 
         }
@@ -139,6 +117,38 @@ namespace WebApi.Services
             var ffile = getFFile(id);
             _context.FFiles.Remove(ffile);
             _context.SaveChanges();
+        }
+
+        public void CreateCopyJob(FFile file)
+        {
+            var job = new CopyJob();
+
+            job.PathToFile = file.FullPath;
+            job.ArchivePath = file.ArchivePath;
+            job.IdToUpdate = file.Id;
+            job.Retries = 0;
+
+            _context.CopyJobs.Update(job);
+            _context.SaveChanges(true);
+        }
+
+        bool CheckIfDuplicate(CreateRequest model)
+        {
+            if (_context.FFiles.Any(x => x.Hash == model.Hash) &&
+                   _context.FFiles.Any(x => x.ParentFolder == model.ParentFolder))
+            {
+
+                Console.WriteLine("File already exists, skipping that mofo");
+                return true;
+            }
+
+            if (_context.CopyJobs.Any(x => x.PathToFile == model.FullPath))
+            {
+                Console.WriteLine($"Duplicate copy job detected");
+                return true;
+            }
+
+            return false;
         }
 
         // helper methods
@@ -153,37 +163,26 @@ namespace WebApi.Services
         public static DirectoryInfo GetArchivePath()
         {
             string base64Guid = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-            base64Guid = new string((from c in base64Guid where char.IsWhiteSpace(c) 
-                                     || char.IsLetterOrDigit(c) select c).ToArray());
+            base64Guid = new string((from c in base64Guid
+                                     where char.IsWhiteSpace(c)
+                                     || char.IsLetterOrDigit(c)
+                                     select c).ToArray());
 
             var path = Path.Combine(FileArchiveLocation.FullName, base64Guid);
-            
+
             return new DirectoryInfo(path);
         }
 
-        public static bool CreateCopyFolder(string file, out string outputPath)
+        public static string GetCopyPath(string file)
         {
-            bool success = false;
-            outputPath = string.Empty;
+            var fileObj = new FileInfo(file);
 
-            try
-            {
-                var fileObj = new FileInfo(file);
+            if (!fileObj.Exists)
+                throw new FileNotFoundException("File to backup, cannot be found");
 
-                if (!fileObj.Exists)
-                    throw new FileNotFoundException("File to backup, cannot be found");
+            var outputFolder = GetArchivePath();
 
-                var outputFolder = GetArchivePath();
-                outputPath = Path.Combine(outputFolder.FullName, fileObj.Name);
-
-                return true;
-            }
-            catch (Exception)
-            {
-                success = false;
-            }
-
-            return success;
+            return Path.Combine(outputFolder.FullName, fileObj.Name);
         }
 
         public static string CalculateMD5(string filename)
@@ -206,8 +205,9 @@ namespace WebApi.Services
 
             if (!FileService.IsFileLocked(filename))
                 return;
-            
-            while (retries < 10) {
+
+            while (retries < 10)
+            {
                 FileService.IsFileLocked(filename);
                 retries++;
                 Thread.Sleep(250);

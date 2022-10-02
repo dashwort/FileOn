@@ -11,7 +11,7 @@ using WebApi.Helpers;
 namespace WebApi.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20221001220649_InitialCreate")]
+    [Migration("20221002194354_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -60,7 +60,7 @@ namespace WebApi.Migrations
                     b.Property<string>("Extension")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("FFolderId")
+                    b.Property<int>("FFolderId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("FullPath")
@@ -116,9 +116,13 @@ namespace WebApi.Migrations
 
             modelBuilder.Entity("WebApi.Entities.FFile", b =>
                 {
-                    b.HasOne("WebApi.Entities.FFolder", null)
+                    b.HasOne("WebApi.Entities.FFolder", "FFolder")
                         .WithMany("FFiles")
-                        .HasForeignKey("FFolderId");
+                        .HasForeignKey("FFolderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FFolder");
                 });
 
             modelBuilder.Entity("WebApi.Entities.FFolder", b =>

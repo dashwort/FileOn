@@ -15,7 +15,9 @@ namespace WebApi.Entities
             this.Path = fo.FullName;
             this.CreatedDate = fo.CreationTimeUtc;
             this.LastModified = fo.LastWriteTimeUtc;
-            this.FFiles = GetFFiles(fo);
+            this.FFiles = GetFiles(fo);
+
+            Console.WriteLine($"Folder created for {fo.FullName}");
         }
 
         public int Id { get; set; }
@@ -24,7 +26,8 @@ namespace WebApi.Entities
 
         public DateTime CreatedDate { get; set; }
         public DateTime LastModified { get; set; }
-        public List<FFile> FFiles { get; set; }
+
+        public ICollection<FFile> FFiles { get; set; }
 
         string[] GetExtensions()
         {
@@ -32,38 +35,52 @@ namespace WebApi.Entities
             return new string[] { ".txt", ".pdf", ".zip", ".cs", ".ps1", ".db", ".md", ".vs" };
         }
 
-        List<FFile> GetFFiles(DirectoryInfo fo)
+        public ICollection<FFile> GetFiles()
         {
-            var ffiles = new List<FFile>();
+            return GetFiles(new DirectoryInfo(this.Path));
+        }
+
+        public ICollection<FFile> GetFiles(DirectoryInfo fo)
+        {
+            var ffilesToReturn = new List<FFile>();
 
             var extensions = GetExtensions();
 
-            if (extensions.Length == 0)
-                extensions = new string[] { "*" };
+            var files = fo.GetFiles("*", SearchOption.AllDirectories).
+                Where(x => extensions.Contains(x.Extension)); 
 
-            var fs = GetFileList("*", fo.FullName).Where(x => extensions.Contains(x.Extension));
+            foreach (var f in files)
+                ffilesToReturn.Add(new FFile(f));
 
-            foreach (var f in fs)
-                ffiles.Add(new FFile(f));
-
-            return ffiles;
+            return ffilesToReturn;
         }
 
-        IEnumerable<FileInfo> GetFileList(string searchPattern, string rootFolderPath)
+    }
+        public class FFolderInfoEqualityComparer : IEqualityComparer<FFolder>
         {
-            var rootDir = new DirectoryInfo(rootFolderPath);
-            var dirList = rootDir.GetDirectories("*", SearchOption.AllDirectories);
-
-            return from directoriesWithFiles in ReturnFiles(dirList, searchPattern).SelectMany(files => files)
-                   select directoriesWithFiles;
-        }
-
-        IEnumerable<FileInfo[]> ReturnFiles(DirectoryInfo[] dirList, string fileSearchPattern)
-        {
-            foreach (DirectoryInfo dir in dirList)
+            // Interface for comparing two FileInfoLists
+            public FFolderInfoEqualityComparer()
             {
-                yield return dir.GetFiles(fileSearchPattern, SearchOption.TopDirectoryOnly);
+                //ctor for equity comparer
+            }
+
+            public bool Equals(FFolder x, FFolder y)
+            {
+                return x.Path == y.Path;
+            }
+
+
+            /// <summary>
+            /// compare hashes of each file based on file size and name
+            /// </summary>
+            /// <param name="obj"></param>
+            /// <returns></returns>
+            public int GetHashCode(FFolder fi)
+            {
+                string s = $"{fi.Path}";
+                return s.GetHashCode();
             }
         }
     }
-}
+
+  

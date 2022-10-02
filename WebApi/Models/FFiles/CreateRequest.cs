@@ -21,6 +21,8 @@ public class CreateRequest
     [Required]
     public string FullPath { get; set; }
     public string ParentFolder { get; set; }
+
+    public FFolder FFolder { get; set; }
     public string Hash { get; set; }
 
     public DateTime CreationTime { get; set; }

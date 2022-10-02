@@ -18,6 +18,12 @@ public class DataContext : DbContext
         options.UseSqlite(Configuration.GetConnectionString("WebApiDatabase"));
     }
 
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        
+    }
+
+
     public DbSet<FFile> FFiles { get; set; }
     public DbSet<CopyJob> CopyJobs { get; set; }
 

@@ -26,6 +26,7 @@ var builder = WebApplication.CreateBuilder(args);
 
     // configure DI for application services
     services.AddTransient<IFileService, FileService>();
+    services.AddTransient<IDirectoryService, DirectoryService>();
 
     // add the directory monitor and starts it running
     services.AddHostedService<DirectoryMonitor>()
