@@ -28,4 +28,5 @@ public class DataContext : DbContext
     public DbSet<CopyJob> CopyJobs { get; set; }
 
     public DbSet<FFolder> FFolders { get; set; }
+    public DbSet<FolderToMonitor> FoldersToMonitor { get; set; }
 }

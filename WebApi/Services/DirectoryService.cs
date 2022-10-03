@@ -77,7 +77,7 @@ namespace WebApi.Services
 
         }
 
-        public void ScanForChanges(DirectoryInfo fo)
+        public void ScanForFFolderChanges(DirectoryInfo fo)
         {
             var folder = _context.FFolders
                 .Where(x => x.Path.ToLower() == fo.FullName.ToLower())
@@ -90,10 +90,10 @@ namespace WebApi.Services
                 return;
             }
 
-            ScanForChanges(folder);
+            ScanForFFolderChanges(folder);
         }
 
-        public void ScanForChanges(FFolder fo)
+        public void ScanForFFolderChanges(FFolder fo)
         {
             Console.WriteLine($"Scanning folder: {fo.Name} for changes");
 
@@ -108,6 +108,29 @@ namespace WebApi.Services
             foreach (var f in differences)
             {
                 _fileService.Create(new Models.FFiles.CreateRequest(f.FullPath));
+            }
+        }
+
+        public void ScanMonitoredFolder(FolderToMonitor folder)
+        {
+            var dir = new DirectoryInfo(folder.FullPath);
+
+            var scannedFolders = dir.GetDirectories("*", SearchOption.AllDirectories);
+
+            var scannedFolderObjects = new List<FFolder>();
+
+            foreach (var f in scannedFolders)
+                scannedFolderObjects.Add(new FFolder(f));
+
+            // TODO implement an option to delete empty folders
+            //var ffoldersInDB = _context.FFolders.Where(x => x.FolderToMonitor.Id == folder.Id).ToArray();
+
+            //// compare folders in DB with folders to DirectoryToMonitor and return the differences
+            //var differences = scannedFolderObjects.Except(ffoldersInDB, _folderInfoEqualityComparer);
+
+            foreach (var f in scannedFolders)
+            {
+                
             }
         }
 

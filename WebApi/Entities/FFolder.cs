@@ -29,6 +29,8 @@ namespace WebApi.Entities
 
         public ICollection<FFile> FFiles { get; set; }
 
+        public FolderToMonitor FolderToMonitor { get; set; }
+
         string[] GetExtensions()
         {
             // TODO implement better system thats configurable
@@ -66,7 +68,7 @@ namespace WebApi.Entities
 
             public bool Equals(FFolder x, FFolder y)
             {
-                return x.Path == y.Path;
+                return x.Path.ToLower() == y.Path.ToLower();
             }
 
 
