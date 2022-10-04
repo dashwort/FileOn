@@ -27,6 +27,26 @@ namespace WebApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "FoldersToMonitor",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Name = table.Column<string>(type: "TEXT", nullable: true),
+                    Exists = table.Column<bool>(type: "INTEGER", nullable: false),
+                    Extensions = table.Column<string>(type: "TEXT", nullable: true),
+                    FullPath = table.Column<string>(type: "TEXT", nullable: true),
+                    MaxSize = table.Column<long>(type: "INTEGER", nullable: false),
+                    LastModified = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    CreationTime = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    Enabled = table.Column<bool>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FoldersToMonitor", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "FFolders",
                 columns: table => new
                 {
@@ -35,11 +55,17 @@ namespace WebApi.Migrations
                     Name = table.Column<string>(type: "TEXT", nullable: true),
                     Path = table.Column<string>(type: "TEXT", nullable: true),
                     CreatedDate = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    LastModified = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    LastModified = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    FolderToMonitorId = table.Column<int>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_FFolders", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_FFolders_FoldersToMonitor_FolderToMonitorId",
+                        column: x => x.FolderToMonitorId,
+                        principalTable: "FoldersToMonitor",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -75,6 +101,11 @@ namespace WebApi.Migrations
                 name: "IX_FFiles_FFolderId",
                 table: "FFiles",
                 column: "FFolderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FFolders_FolderToMonitorId",
+                table: "FFolders",
+                column: "FolderToMonitorId");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
@@ -87,6 +118,9 @@ namespace WebApi.Migrations
 
             migrationBuilder.DropTable(
                 name: "FFolders");
+
+            migrationBuilder.DropTable(
+                name: "FoldersToMonitor");
         }
     }
 }

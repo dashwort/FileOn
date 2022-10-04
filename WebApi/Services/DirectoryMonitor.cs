@@ -51,9 +51,7 @@ namespace FileOnLib
 
                 foreach (var folder in Directories)
                 {
-                    directoryService.Create(folder);
-
-                    directoryService.ScanForChanges(folder);
+                    directoryService.ScanMonitoredFolder(folder.FullName);
 
                     ConfigureFileWatcher(folder);
                 }

@@ -20,6 +20,18 @@ namespace WebApi.Entities
             Console.WriteLine($"Folder created for {fo.FullName}");
         }
 
+        public FFolder(string path)
+        {
+            var fo = new DirectoryInfo(path);
+            this.Name = fo.Name;
+            this.Path = fo.FullName;
+            this.CreatedDate = fo.CreationTimeUtc;
+            this.LastModified = fo.LastWriteTimeUtc;
+            this.FFiles = GetFiles(fo);
+
+            Console.WriteLine($"Folder created for {fo.FullName}");
+        }
+
         public int Id { get; set; }
         public string Name { get; set; }
         public string Path { get; set; }

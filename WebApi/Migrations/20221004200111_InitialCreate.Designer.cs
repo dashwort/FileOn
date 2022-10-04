@@ -11,7 +11,7 @@ using WebApi.Helpers;
 namespace WebApi.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20221002194354_InitialCreate")]
+    [Migration("20221004200111_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -100,6 +100,9 @@ namespace WebApi.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("FolderToMonitorId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("TEXT");
 
@@ -111,7 +114,44 @@ namespace WebApi.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("FolderToMonitorId");
+
                     b.ToTable("FFolders");
+                });
+
+            modelBuilder.Entity("WebApi.Entities.FolderToMonitor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Exists")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Extensions")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FullPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastModified")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("MaxSize")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FoldersToMonitor");
                 });
 
             modelBuilder.Entity("WebApi.Entities.FFile", b =>
@@ -127,7 +167,21 @@ namespace WebApi.Migrations
 
             modelBuilder.Entity("WebApi.Entities.FFolder", b =>
                 {
+                    b.HasOne("WebApi.Entities.FolderToMonitor", "FolderToMonitor")
+                        .WithMany("FFolders")
+                        .HasForeignKey("FolderToMonitorId");
+
+                    b.Navigation("FolderToMonitor");
+                });
+
+            modelBuilder.Entity("WebApi.Entities.FFolder", b =>
+                {
                     b.Navigation("FFiles");
+                });
+
+            modelBuilder.Entity("WebApi.Entities.FolderToMonitor", b =>
+                {
+                    b.Navigation("FFolders");
                 });
 #pragma warning restore 612, 618
         }
