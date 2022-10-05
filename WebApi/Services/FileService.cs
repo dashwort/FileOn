@@ -59,14 +59,14 @@ namespace WebApi.Services
 
                 if (!insertSuccess)
                 {
-                    Console.WriteLine($"skipping {model.Name} item already present in dictionary lines 59, create model");
+                    //Console.WriteLine($"skipping {model.Name} item already present in dictionary lines 59, create model");
                     return;
                 }
 
 
                 if (!modelFile.Exists)
                 {
-                    Console.WriteLine("File doesnt exist or is not a valid file path e.g. folder");
+                    //Console.WriteLine("File doesnt exist or is not a valid file path e.g. folder");
                     return;
                 }
 
@@ -135,7 +135,7 @@ namespace WebApi.Services
         bool CheckIfDuplicate(CreateRequest model)
         {
             if (_context.FFiles.Any(x => x.Hash == model.Hash) &&
-                   _context.FFiles.Any(x => x.ParentFolder == model.ParentFolder))
+                   _context.FFiles.Any(x => x.FullPath == model.FullPath))
             {
 
                 Console.WriteLine("File already exists, skipping that mofo");

@@ -19,15 +19,15 @@ namespace WebApi.Entities
 
         public FFile(FileInfo fi)
         {
-            this.Name = fi.Name;
-            this.FullPath = fi.FullName;
-            this.ParentFolder = fi.Directory.FullName;
-            this.Hash = FileService.CalculateMD5(fi.FullName);
+            this.Name = fi.Name.ToLower();
+            this.FullPath = fi.FullName.ToLower();
+            this.ParentFolder = fi.Directory.FullName.ToLower();
+            this.Hash = FileService.CalculateMD5(fi.FullName).ToLower();
             this.CreationTime = fi.CreationTimeUtc;
             this.LastModified = fi.LastWriteTimeUtc;
             this.Size = fi.Length;
-            this.Extension = fi.Extension;
-            this.ArchivePath = FileService.GetCopyPath(fi.FullName);
+            this.Extension = fi.Extension.ToLower();
+            this.ArchivePath = FileService.GetCopyPath(fi.FullName).ToLower();
 
             if (this.Extension.ToLower() == ".zip")
                 this.Iszip = true;
@@ -64,9 +64,8 @@ namespace WebApi.Entities
 
         public bool Equals(FFile x, FFile y)
         {
-            bool timeEquity = DateTime.Compare(x.LastModified, y.LastModified) == 0 ? true : false;
-            bool sizeEquity = x.Size.Equals(y.Size);
-            return x.Name.Equals(y.Name) && timeEquity && sizeEquity;
+            bool hash = x.Hash == y.Hash;
+            return x.Name.Equals(y.Name) && hash;
         }
 
 

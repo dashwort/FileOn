@@ -1,4 +1,6 @@
-﻿namespace WebApi.Entities
+﻿using System.IO;
+
+namespace WebApi.Entities
 {
     public class FolderToMonitor
     {
@@ -22,13 +24,16 @@
             Enabled = true;
         }
 
+        List<string> _excludedDirectories = new List<string>() { ".git", ".vs" };
+
         private ICollection<FFolder> GetFFolders()
         {
             var ffiles = new List<FFolder>();
 
             var folderToMonitor = new DirectoryInfo(FullPath);
 
-            var subFolders = folderToMonitor.GetDirectories("*", SearchOption.AllDirectories);
+            var subFolders = folderToMonitor.GetDirectories("*", SearchOption.AllDirectories)
+                .Where(d => !isExcluded(_excludedDirectories, d)).ToArray();
 
             foreach (var f in subFolders)
             {
@@ -42,6 +47,11 @@
         {
             // TODO implement an option to pass down maxsize to ffolders
             return 0;
+        }
+
+        static bool isExcluded(List<string> exludedDirList, DirectoryInfo target)
+        {
+            return exludedDirList.Any(d => target.FullName.Contains(d));
         }
 
         public int Id { get; set; }

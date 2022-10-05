@@ -16,20 +16,16 @@ namespace WebApi.Entities
             this.CreatedDate = fo.CreationTimeUtc;
             this.LastModified = fo.LastWriteTimeUtc;
             this.FFiles = GetFiles(fo);
-
-            Console.WriteLine($"Folder created for {fo.FullName}");
         }
 
         public FFolder(string path)
         {
             var fo = new DirectoryInfo(path);
-            this.Name = fo.Name;
-            this.Path = fo.FullName;
+            this.Name = fo.Name.ToLower();
+            this.Path = fo.FullName.ToLower();
             this.CreatedDate = fo.CreationTimeUtc;
             this.LastModified = fo.LastWriteTimeUtc;
             this.FFiles = GetFiles(fo);
-
-            Console.WriteLine($"Folder created for {fo.FullName}");
         }
 
         public int Id { get; set; }
@@ -60,8 +56,8 @@ namespace WebApi.Entities
 
             var extensions = GetExtensions();
 
-            var files = fo.GetFiles("*", SearchOption.AllDirectories).
-                Where(x => extensions.Contains(x.Extension)); 
+            var files = fo.GetFiles("*", SearchOption.TopDirectoryOnly);
+                //.Where(x => extensions.Contains(x.Extension)); 
 
             foreach (var f in files)
                 ffilesToReturn.Add(new FFile(f));

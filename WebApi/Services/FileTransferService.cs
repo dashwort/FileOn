@@ -13,6 +13,8 @@ namespace WebApi.Services
         // timers 
         System.Timers.Timer ProcessCopyJobs;
 
+        public bool IsRunning { get; set; }
+
         public FileTransferService(IServiceScopeFactory scope, IConfiguration config)
         {
             _scopeFactory = scope;
@@ -47,6 +49,11 @@ namespace WebApi.Services
 
         async void HandleCopyJobs(object sender, ElapsedEventArgs e)
         {
+            if (IsRunning)
+                return;
+            else
+                IsRunning = true;
+
             using (var scope = _scopeFactory.CreateScope())
             {
                 var _context = scope.ServiceProvider.GetRequiredService<DataContext>();
@@ -60,7 +67,7 @@ namespace WebApi.Services
                 {
                     try
                     {
-                        Console.WriteLine($"Processing job with ID: {job.Id}, archive path: {job.ArchivePath}");
+                        //Console.WriteLine($"Processing job with ID: {job.Id}, archive path: {job.ArchivePath}");
 
                         var copyPath = new FileInfo(job.PathToFile);
 
@@ -81,11 +88,18 @@ namespace WebApi.Services
                             {
                                 job.processed = true;
                                 Console.WriteLine($"Verified copy job with ID: {job.Id}");
+
+                                _context.Remove(job);
+                                _context.SaveChanges();
+                                continue;
                             }
                             else
                             {
-                                File.Delete(job.PathToFile);
+                                // TODO handle this edge case
+                                //File.Delete(job.PathToFile);
                                 job.Retries++;
+
+                                Console.WriteLine($"Warning line 102 in FileTransferservices");
                             }
 
                         }
@@ -103,6 +117,8 @@ namespace WebApi.Services
                     }
                 }
             }
+
+            IsRunning = false;
         }
 
         void HandleOnStart(object sender, EventArgs e)

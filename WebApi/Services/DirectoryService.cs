@@ -166,23 +166,54 @@ namespace WebApi.Services
             ScanForFFolderChanges(folder);
         }
 
-
-
         public void ScanForFFolderChanges(FFolder fo)
         {
-            Console.WriteLine($"Scanning folder: {fo.Name} for changes");
+            var folder = _context.FFolders.Where(x => x.Path == fo.Path).FirstOrDefault();
 
-            var lastKnownFiles = _context.FFiles.Where(x => x.FFolder.Id == fo.Id).ToArray();
+            if (folder is null)
+                Create(fo.Path);
 
-            var currentFiles = fo.GetFiles().ToArray();
+            var lastKnownFiles = _context.FFiles.Where(x => x.FFolder.Id == folder.Id).ToArray();
 
-            var differences = currentFiles.Except(lastKnownFiles, _fileInfoEqualityComparer).ToArray();
+            var lastKnownFilesDictionary = new Dictionary<string, FFile>(); 
 
-            Console.WriteLine($"{differences.Length} changes found in folder {fo.Path}");
+            foreach (var file in lastKnownFiles)
+                lastKnownFilesDictionary.Add(file.FullPath, file);
 
-            foreach (var f in differences)
+            if (lastKnownFiles.Length != lastKnownFilesDictionary.Count)
+                Console.WriteLine($"Warning! line 203 is DirectoryService is not equal");
+
+            var currentFiles = fo.FFiles.ToArray();
+
+            var listOfDifferences = new List<FFile>();
+
+            foreach (var file in currentFiles)
             {
-                _fileService.Create(new Models.FFiles.CreateRequest(f.FullPath));
+                var lkFile = lastKnownFilesDictionary.GetValueOrDefault(file.FullPath);
+
+                if (lkFile != null)
+                {
+                    bool hashMatch = file.Hash == lkFile.Hash;
+                    bool pathMatch = file.FullPath == lkFile.FullPath;
+
+                    if (hashMatch && pathMatch)
+                        continue;
+
+                    listOfDifferences.Add(file);
+                } else
+                {
+                    Console.WriteLine($"file doesnt exist: {file.FullPath}");
+                    listOfDifferences.Add(file);
+                }
+            }
+
+            if (listOfDifferences.Count > 0)
+            {
+                Console.WriteLine($"{listOfDifferences.Count} changes found in folder {fo.Path}");
+                foreach (var f in listOfDifferences)
+                {
+                    _fileService.Create(new Models.FFiles.CreateRequest(f.FullPath));
+                }
             }
         }
 
@@ -205,6 +236,7 @@ namespace WebApi.Services
         public void ScanMonitoredFolder(FolderToMonitor folder)
         {
             Console.WriteLine($"Scanning monitored folder {folder.FullPath}");
+
             var dir = new DirectoryInfo(folder.FullPath);
 
             var scannedFolders = dir.GetDirectories("*", SearchOption.AllDirectories);
@@ -214,15 +246,16 @@ namespace WebApi.Services
             foreach (var f in scannedFolders)
                 scannedFolderObjects.Add(new FFolder(f));
 
-            // TODO implement an option to delete empty folders
-            var ffoldersInDB = _context.FFolders.Where(x => x.FolderToMonitor.Id == folder.Id).ToArray();
+            //// TODO implement an option to delete empty folders
+            //var ffoldersInDB = _context.FFolders.Where(x => x.FolderToMonitor.Id == folder.Id).ToArray();
 
-            //// compare folders in DB with folders to DirectoryToMonitor and return the differences
-            var differences = scannedFolderObjects.Except(ffoldersInDB, _folderInfoEqualityComparer).ToArray();
+            ////// compare folders in DB with folders to DirectoryToMonitor and return the differences
+            //var differences = scannedFolderObjects.Except(ffoldersInDB, _folderInfoEqualityComparer).ToArray();
 
-            Console.WriteLine($"{differences.Length} differences detected in folder: {folder.FullPath}");
+            //if (ffoldersInDB.Length > 0)
+            //    Console.WriteLine($"{differences.Length} differences detected in monitored folder: {folder.FullPath}");
 
-            foreach (var f in scannedFolders)
+            foreach (var f in scannedFolderObjects)
             {
                 ScanForFFolderChanges(f);
             }
