@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text;
 using System.Timers;
 using WebApi.Entities;
 using WebApi.Helpers;
@@ -47,23 +49,18 @@ namespace WebApi.Services.HostedServices
                 else
                     IsFolderActivityRunning = true;
 
-                using (var scope = _scopeFactory.CreateScope())
+                foreach (var folderEvent in _foldersInUse)
                 {
-                    var _context = scope.ServiceProvider.GetRequiredService<DataContext>();
+                    var now = DateTime.UtcNow;
 
-                    foreach (var folderEvent in _foldersInUse)
+                    var delta = now - folderEvent.Value.TimeOfEvent;
+
+                    if (delta.Minutes > 1)
                     {
-                        var now = DateTime.UtcNow;
-
-                        var delta = now - folderEvent.Value.TimeOfEvent;
-
-                        if (delta.Minutes > 1)
-                        {
-                            _foldersInUse.TryRemove(folderEvent);
-                            Console.WriteLine($"folder expired: {folderEvent.Value.Folder.FullName}");
-                        }
-                            
+                        _foldersInUse.TryRemove(folderEvent);
+                        Console.WriteLine($"folder expired: {folderEvent.Value.Folder.FullName}");
                     }
+
                 }
 
                 IsFolderActivityRunning = false;
@@ -113,13 +110,16 @@ namespace WebApi.Services.HostedServices
 
         void Stop()
         {
-            Console.WriteLine($"Calling stop");
+            Console.WriteLine($"Calling stop file transfer service");
+            ProcessCopyJobs?.Stop();
+            FolderActivity?.Stop();
         }
 
         void Start()
         {
+            Console.WriteLine($"Starting file transfer service");
             ProcessCopyJobs?.Start();
-
+            FolderActivity?.Start();
         }
 
         async void HandleCopyJobs(object sender, ElapsedEventArgs e)
@@ -175,7 +175,7 @@ namespace WebApi.Services.HostedServices
                                 //File.Delete(job.PathToFile);
                                 job.Retries++;
 
-                                Console.WriteLine($"Warning line 102 in FileTransferservices");
+                                Console.WriteLine($"Warning line 177 in FileTransferservices");
                             }
 
                         }
@@ -238,25 +238,50 @@ namespace WebApi.Services.HostedServices
         {
             try
             {
-                WaitWhileInUse(filename);
+                var watch = new Stopwatch();
+                watch.Start();
 
-                if (IsFileLocked(filename))
+                var fileInfo = new FileInfo(filename);
+
+                var sizeInMb = fileInfo.Length / (1024 * 1024);
+
+                WaitWhileInUse(fileInfo.FullName);
+
+                if (IsFileLocked(fileInfo.FullName))
                     return String.Empty;
+
+                if (sizeInMb > 10)
+                    return CalculateFastHash(fileInfo);
 
                 using (var md5 = MD5.Create())
                 {
-                    using (var stream = File.OpenRead(filename))
+                    using (var stream = File.OpenRead(fileInfo.FullName))
                     {
                         var hash = md5.ComputeHash(stream);
                         return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
                     }
-                }
+                }  
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during MD5 Calc: {ex.Message}");
                 return String.Empty;
             }
+        }
+
+        public static string CalculateFastHash(FileInfo fileInfo)
+        {
+            string properties = $"{fileInfo.FullName}{fileInfo.Length}{fileInfo.LastAccessTimeUtc}";
+
+            string hash;
+            using (System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create())
+            {
+                hash = BitConverter.ToString(
+                  md5.ComputeHash(Encoding.UTF8.GetBytes(properties))
+                ).Replace("-", String.Empty);
+            }
+
+            return hash;
         }
 
         static void WaitWhileInUse(string filename)

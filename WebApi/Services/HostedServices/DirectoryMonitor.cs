@@ -49,12 +49,18 @@ namespace WebApi.Services.HostedServices
             {
                 var monitoredFolderService = scope.ServiceProvider.GetRequiredService<IMonitoredFolderService>();
 
+                List<Task> tasks = new List<Task>();
+
                 foreach (var folder in Directories)
                 {
-                    await monitoredFolderService.ScanMonitoredFolder(new FolderToMonitor(folder));
+                    var scanTask = Task.Run(() => { monitoredFolderService.ScanMonitoredFolder(folder); }); 
+
+                    tasks.Add(scanTask);
 
                     ConfigureFileWatcher(folder);
                 }
+
+                await Task.WhenAll(tasks);
             }
 
             watch.Stop();
@@ -92,8 +98,6 @@ namespace WebApi.Services.HostedServices
             using (var scope = _scopeFactory.CreateScope())
             {
                 var directoryService = scope.ServiceProvider.GetRequiredService<IDirectoryService>();
-
-                Console.WriteLine("Detected type: {0} in file: {1}, with path: {2}", e.ChangeType, e.Name, e.FullPath);
 
                 await directoryService.RaiseFolderEvent(fileInfo);
 

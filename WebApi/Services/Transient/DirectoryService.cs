@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using WebApi.Entities;
 using WebApi.Helpers;

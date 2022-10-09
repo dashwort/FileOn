@@ -58,11 +58,11 @@ namespace WebApi.Services.Transient
             return existingFolder;
         }
 
-        public async Task ScanMonitoredFolder(FolderToMonitor folder)
+        public async Task ScanMonitoredFolder(DirectoryInfo folder)
         {
-            Console.WriteLine($"Scanning monitored folder {folder.FullPath}");
+            Console.WriteLine($"Scanning monitored folder {folder.FullName}");
 
-            var dir = new DirectoryInfo(folder.FullPath);
+            var dir = new DirectoryInfo(folder.FullName);
 
             var scannedFolders = dir.GetDirectories("*", SearchOption.AllDirectories).ToList();
 
