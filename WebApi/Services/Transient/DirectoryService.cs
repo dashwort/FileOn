@@ -90,16 +90,16 @@ namespace WebApi.Services.Transient
         #endregion
 
         #region FolderToMonitor
-        public void CreateFolder(DirectoryInfo folder)
+        public FFolder CreateFolder(DirectoryInfo folder)
         {
-            var ffolder = new FFolder(folder);
-
             var existingFolder = _context.FFolders.
                 Where(x => x.Path.ToLower() == folder.FullName.ToLower())
                 .FirstOrDefault();
 
             if (existingFolder == null)
             {
+                var ffolder = new FFolder(folder);
+
                 _context.FFolders.Add(ffolder);
                 _context.SaveChanges(true);
 
@@ -113,11 +113,14 @@ namespace WebApi.Services.Transient
 
                 _context.CopyJobs.AddRange(copyJobs);
                 _context.SaveChanges(true);
+
+                return ffolder;
             }
 
+            return existingFolder;
         }
 
-        public async Task<FolderInUseEvent> RaiseFolderEvent(FileInfo file)
+        public async Task RaiseFolderEvent(FileInfo file)
         {
             var ffolder = await _context.FFolders
                 .Where(x => x.Path == file.Directory.FullName.ToLower())
@@ -128,11 +131,13 @@ namespace WebApi.Services.Transient
             if (ffolder != null)
                 folderEvent.FolderId = ffolder.Id;
 
-            return folderEvent;
+            DirectoryMonitor.DirectoryActivity?.Invoke(folderEvent, EventArgs.Empty);
+            Console.WriteLine($"raised folder event {file.Directory.FullName}");
         }
 
         public async Task ScanForFFolderChanges(FFolder folder)
         {
+            Console.WriteLine($"Scanning folder: {folder.Path} for changes");
             var fo = await _context.FFolders
                 .Include(x => x.FFiles)
                 .Where(x => x.Path == folder.Path).FirstOrDefaultAsync();
@@ -140,7 +145,7 @@ namespace WebApi.Services.Transient
             if (fo is null)
                 fo = Create(new DirectoryInfo(folder.Path));
 
-           var hashes = fo.FFiles.Select(x => x.Hash).ToList();
+            var hashes = fo.FFiles.Select(x => x.Hash).ToList();
 
             var currentFiles = folder.FFiles.ToArray();
 
@@ -163,6 +168,18 @@ namespace WebApi.Services.Transient
                     _fileService.Create(new Models.FFiles.FFileCreateRequest(f.FullPath));
                 }
             }
+        }
+
+        public async Task<FFolder> FindFFolder(DirectoryInfo dir)
+        {
+            var ffolder = await _context.FFolders
+                .Where(x => x.Path.ToLower() == dir.FullName.ToLower())
+                .FirstOrDefaultAsync();
+
+            if (ffolder is null)
+                return CreateFolder(dir);
+            else
+                return ffolder;
         }
         #endregion
     }

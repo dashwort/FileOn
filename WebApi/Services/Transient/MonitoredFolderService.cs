@@ -74,10 +74,14 @@ namespace WebApi.Services.Transient
             foreach (var f in scannedFolders)
                 scannedFolderObjects.Add(new FFolder(f));
 
+            List<Task> folders = new List<Task>();
+
             foreach (var f in scannedFolderObjects)
             {
-                await _directoryService.ScanForFFolderChanges(f);
+                folders.Add(_directoryService.ScanForFFolderChanges(f));
             }
+
+            await Task.WhenAll(folders);
         }
     }
 }

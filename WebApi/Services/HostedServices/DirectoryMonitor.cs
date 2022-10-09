@@ -7,6 +7,7 @@ using WebApi.Helpers;
 using WebApi.Models.FFiles;
 using WebApi.Services.HostedServices.models;
 using WebApi.Services.Interface;
+using WebApi.Services.Transient;
 
 namespace WebApi.Services.HostedServices
 {
@@ -53,9 +54,7 @@ namespace WebApi.Services.HostedServices
 
                 foreach (var folder in Directories)
                 {
-                    var scanTask = Task.Run(() => { monitoredFolderService.ScanMonitoredFolder(folder); }); 
-
-                    tasks.Add(scanTask);
+                    tasks.Add(monitoredFolderService.ScanMonitoredFolder(folder));
 
                     ConfigureFileWatcher(folder);
                 }
@@ -101,7 +100,7 @@ namespace WebApi.Services.HostedServices
 
                 await directoryService.RaiseFolderEvent(fileInfo);
 
-                var folder = new FFolder(fileInfo.Directory);
+                var folder = await directoryService.FindFFolder(fileInfo.Directory);
 
                 await directoryService.ScanForFFolderChanges(folder);
             }

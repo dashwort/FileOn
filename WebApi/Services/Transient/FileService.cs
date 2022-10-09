@@ -226,7 +226,6 @@ namespace WebApi.Services.Transient
             // TODO reimplement
             var ffile = new FFile(f);
 
-
             if (CheckIfDuplicate(ffile))
             {
                 Console.WriteLine($"No changes detected in FFile {ffile.FullPath}");

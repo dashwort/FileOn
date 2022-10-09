@@ -238,9 +238,6 @@ namespace WebApi.Services.HostedServices
         {
             try
             {
-                var watch = new Stopwatch();
-                watch.Start();
-
                 var fileInfo = new FileInfo(filename);
 
                 var sizeInMb = fileInfo.Length / (1024 * 1024);
@@ -250,38 +247,20 @@ namespace WebApi.Services.HostedServices
                 if (IsFileLocked(fileInfo.FullName))
                     return String.Empty;
 
-                if (sizeInMb > 10)
-                    return CalculateFastHash(fileInfo);
-
-                using (var md5 = MD5.Create())
+                using (var md5 = SHA512.Create())
                 {
                     using (var stream = File.OpenRead(fileInfo.FullName))
                     {
                         var hash = md5.ComputeHash(stream);
                         return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
                     }
-                }  
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during MD5 Calc: {ex.Message}");
                 return String.Empty;
             }
-        }
-
-        public static string CalculateFastHash(FileInfo fileInfo)
-        {
-            string properties = $"{fileInfo.FullName}{fileInfo.Length}{fileInfo.LastAccessTimeUtc}";
-
-            string hash;
-            using (System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create())
-            {
-                hash = BitConverter.ToString(
-                  md5.ComputeHash(Encoding.UTF8.GetBytes(properties))
-                ).Replace("-", String.Empty);
-            }
-
-            return hash;
         }
 
         static void WaitWhileInUse(string filename)
