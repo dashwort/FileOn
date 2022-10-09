@@ -1,9 +1,9 @@
-﻿using FileOnLib;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using WebApi.Entities;
 using WebApi.Helpers;
-using WebApi.Services;
+using WebApi.Services.HostedServices;
 using WebApi.Services.Interface;
+using WebApi.Services.Transient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +27,7 @@ var builder = WebApplication.CreateBuilder(args);
     // configure DI for application services
     services.AddTransient<IFileService, FileService>();
     services.AddTransient<IDirectoryService, DirectoryService>();
+    services.AddTransient<IMonitoredFolderService, MonitoredFolderService>();
 
     // add the directory monitor and starts it running
     services.AddHostedService<DirectoryMonitor>()

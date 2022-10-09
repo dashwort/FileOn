@@ -1,21 +1,16 @@
 ﻿using WebApi.Entities;
-using WebApi.Models.FFolder;
+using WebApi.Services.HostedServices.models;
 
 namespace WebApi.Services.Interface
 {
     public interface IDirectoryService
     {
-        void Create(CreateRequest model);
-        void Create(DirectoryInfo folder);
-        void Create(string folderPath);
-        CopyJob CreateCopyJob(FFile file);
-        void CreateFolderToMonitor(string f);
+        FFolder Create(DirectoryInfo folder);
         void Delete(int id);
         IEnumerable<FFolder> GetAll();
         FFolder GetById(int id);
-        void ScanForFFolderChanges(DirectoryInfo fo);
-        void ScanForFFolderChanges(FFolder fo);
-        void ScanMonitoredFolder(FolderToMonitor folder);
-        void ScanMonitoredFolder(string folder);
+        void CreateFolder(DirectoryInfo folder);
+        Task ScanForFFolderChanges(FFolder folder);
+        Task<FolderInUseEvent> RaiseFolderEvent(FileInfo file);
     }
 }

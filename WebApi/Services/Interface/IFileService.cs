@@ -5,10 +5,11 @@ namespace WebApi.Services.Interface
 {
     public interface IFileService
     {
-        void Create(CreateRequest model);
-        void CreateCopyJob(FFile file);
+        void Create(FFileCreateRequest model);
         void Delete(int id);
         IEnumerable<FFile> GetAll();
         FFile GetById(int id);
+        void CreateFFile(FileInfo f);
+        void ScanForChanges(FileInfo f);
     }
 }

@@ -9,10 +9,8 @@ namespace WebApi.Entities
 
         }
 
-        public FolderToMonitor(string directory)
+        public FolderToMonitor(DirectoryInfo folder)
         {
-            var folder = new DirectoryInfo(directory);
-
             Name = folder.Name;
             FullPath = folder.FullName;
             Exists = folder.Exists;
@@ -28,7 +26,7 @@ namespace WebApi.Entities
 
         private ICollection<FFolder> GetFFolders()
         {
-            var ffiles = new List<FFolder>();
+            var ffolders = new List<FFolder>();
 
             var folderToMonitor = new DirectoryInfo(FullPath);
 
@@ -37,10 +35,12 @@ namespace WebApi.Entities
 
             foreach (var f in subFolders)
             {
-                ffiles.Add(new FFolder(f));
+                ffolders.Add(new FFolder(f));
             }
 
-            return ffiles;
+            ffolders.Add(new FFolder(FullPath));
+
+            return ffolders;
         }
 
         private long GetMaxSize()

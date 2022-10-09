@@ -5,22 +5,22 @@ using System.Text;
 using WebApi.Entities;
 using WebApi.Helpers;
 using WebApi.Models.FFiles;
+using WebApi.Services.HostedServices.models;
 using WebApi.Services.Interface;
 
-namespace FileOnLib
+namespace WebApi.Services.HostedServices
 {
     public class DirectoryMonitor : IHostedService
     {
         IConfiguration _configuration;
         IServiceScopeFactory _scopeFactory;
-        
 
+        public static EventHandler DirectoryActivity; 
         public DirectoryMonitor(IConfiguration configuration, IServiceScopeFactory scope)
         {
             Console.WriteLine($"Starting directory monitor service");
             _configuration = configuration;
             _scopeFactory = scope;
-            
 
             Directories = new List<DirectoryInfo>();
 
@@ -40,18 +40,18 @@ namespace FileOnLib
         public List<DirectoryInfo> Directories { get; set; }
         List<FileSystemWatcher> fileSystemWatchers = new List<FileSystemWatcher>();
 
-        void StartMonitor()
+        async Task StartMonitor()
         {
             var watch = new Stopwatch();
             watch.Start();
 
             using (var scope = _scopeFactory.CreateScope())
             {
-                var directoryService = scope.ServiceProvider.GetRequiredService<IDirectoryService>();
+                var monitoredFolderService = scope.ServiceProvider.GetRequiredService<IMonitoredFolderService>();
 
                 foreach (var folder in Directories)
                 {
-                    directoryService.ScanMonitoredFolder(folder.FullName);
+                    await monitoredFolderService.ScanMonitoredFolder(new FolderToMonitor(folder));
 
                     ConfigureFileWatcher(folder);
                 }
@@ -80,29 +80,26 @@ namespace FileOnLib
             Console.WriteLine($"Calling stop async on directory monitor");
             return Task.Run(StopMonitor);
         }
-        
+
         // Define the event handlers.  
         public async void OnChanged(object source, FileSystemEventArgs e)
         {
             var fileInfo = new FileInfo(e.FullPath);
-
-            Console.WriteLine($"");
 
             if (!fileInfo.Exists)
                 return;
 
             using (var scope = _scopeFactory.CreateScope())
             {
-                var fileService = scope.ServiceProvider.GetRequiredService<IFileService>();
-                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+                var directoryService = scope.ServiceProvider.GetRequiredService<IDirectoryService>();
 
                 Console.WriteLine("Detected type: {0} in file: {1}, with path: {2}", e.ChangeType, e.Name, e.FullPath);
 
-                var model = new CreateRequest(fileInfo.FullName) { ParentFolder = ""};
+                await directoryService.RaiseFolderEvent(fileInfo);
 
-                var folder = await context.FFolders.FindAsync(1);
+                var folder = new FFolder(fileInfo.Directory);
 
-                await Task.Run(() => { fileService.Create(model); });
+                await directoryService.ScanForFFolderChanges(folder);
             }
 
         }
@@ -127,15 +124,15 @@ namespace FileOnLib
             watcher.Path = folder.FullName;
             watcher.IncludeSubdirectories = true;
 
-            // Watch for all changes specified in the NotifyFilters  
-            //enumeration.  
-            watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size;
+            // Watch for all changes specified in the NotifyFilters   
+            watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.LastWrite;
 
             // Watch all files. Handle filtering in onchange event as filter doesnt support more than one extension.
             watcher.Filter = "*";
 
             // Add event handlers.  
             watcher.Changed += new FileSystemEventHandler(OnChanged);
+            watcher.Created += new FileSystemEventHandler(OnChanged);
 
             //Start monitoring.  
             watcher.EnableRaisingEvents = true;

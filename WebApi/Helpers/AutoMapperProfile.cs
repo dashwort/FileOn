@@ -9,7 +9,7 @@ public class AutoMapperProfile : Profile
     public AutoMapperProfile()
     {
         // CreateRequest -> User
-        CreateMap<CreateRequest, FFile>();
+        CreateMap<FFileCreateRequest, FFile>();
 
         // UpdateRequest -> User
         //CreateMap<UpdateRequest, FFile>()

@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using WebApi.Models.FFiles;
-using WebApi.Services;
+using WebApi.Services.HostedServices;
+using WebApi.Services.Transient;
 
 namespace WebApi.Entities
 {
@@ -22,7 +23,7 @@ namespace WebApi.Entities
             this.Name = fi.Name.ToLower();
             this.FullPath = fi.FullName.ToLower();
             this.ParentFolder = fi.Directory.FullName.ToLower();
-            this.Hash = FileService.CalculateMD5(fi.FullName).ToLower();
+            this.Hash = FileTransferService.CalculateMD5(fi.FullName).ToLower();
             this.CreationTime = fi.CreationTimeUtc;
             this.LastModified = fi.LastWriteTimeUtc;
             this.Size = fi.Length;
@@ -33,7 +34,7 @@ namespace WebApi.Entities
                 this.Iszip = true;
         }
 
-        public FFile(CreateRequest request)
+        public FFile(FFileCreateRequest request)
         {
             throw new NotImplementedException();
         }

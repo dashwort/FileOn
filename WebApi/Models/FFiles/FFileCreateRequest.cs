@@ -3,14 +3,14 @@ namespace WebApi.Models.FFiles;
 using System.ComponentModel.DataAnnotations;
 using WebApi.Entities;
 
-public class CreateRequest
+public class FFileCreateRequest
 {
-    public CreateRequest()
+    public FFileCreateRequest()
     {
 
     }
 
-    public CreateRequest(string fullpath)
+    public FFileCreateRequest(string fullpath)
     {
         FullPath = fullpath;
     }

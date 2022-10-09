@@ -33,7 +33,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpPost]
-    public IActionResult Create(CreateRequest model)
+    public IActionResult Create(FFileCreateRequest model)
     {
         _fileService.Create(model);
         return Ok(new { message = "File created" });

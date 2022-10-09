@@ -3,7 +3,7 @@ using WebApi.Entities;
 
 namespace WebApi.Models.FFolder
 {
-    public class CreateRequest
+    public class FFolderCreateRequest
     {
         public int Id { get; set; }
         public string Name { get; set; }
