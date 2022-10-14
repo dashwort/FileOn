@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Timers;
 using WebApi.Entities;
 using WebApi.Helpers;
 using WebApi.Models.FFiles;
@@ -16,6 +17,8 @@ namespace WebApi.Services.HostedServices
         IConfiguration _configuration;
         IServiceScopeFactory _scopeFactory;
 
+        System.Timers.Timer _scanEventTimer;
+
         public static EventHandler DirectoryActivity; 
         public DirectoryMonitor(IConfiguration configuration, IServiceScopeFactory scope)
         {
@@ -23,47 +26,89 @@ namespace WebApi.Services.HostedServices
             _configuration = configuration;
             _scopeFactory = scope;
 
-            Directories = new List<DirectoryInfo>();
+            ReadConfiguration();
 
-            var folders = _configuration.GetSection("DirectoryMonitor:DirectoriesToMonitor").Get<List<string>>();
-
-            foreach (var folder in folders)
+            if (ScanInterval != 0)
             {
-                var folderInfo = new DirectoryInfo(folder);
-
-                if (folderInfo.Exists)
-                    Directories.Add(folderInfo);
-                else
-                    Console.WriteLine($"Warning skipping non-existent folder {folderInfo.FullName}");
+                _scanEventTimer = new System.Timers.Timer(1000 * ScanInterval);
+                _scanEventTimer.Elapsed += TriggerAutomaticScan;
             }
         }
 
         public List<DirectoryInfo> Directories { get; set; }
+        public bool AutoScan { get; set; }
+        public int ScanInterval { get; set; }
+        public bool AutoScanIsRunning { get; set; }
+
         List<FileSystemWatcher> fileSystemWatchers = new List<FileSystemWatcher>();
+
+        void ReadConfiguration()
+        {
+            try
+            {
+                Directories = new List<DirectoryInfo>();
+
+                var folders = _configuration.GetSection("DirectoryMonitor:DirectoriesToMonitor").Get<List<string>>();
+                var autoScanstring = _configuration.GetSection("DirectoryMonitor:AutoDetectChanges").Get<string>();
+                var scanIntervalstring = _configuration.GetSection("DirectoryMonitor:ScanInterval").Get<string>();
+
+                bool autoScan = false;
+                bool parseAutoScan = bool.TryParse(autoScanstring, out autoScan);
+
+                if (parseAutoScan)
+                    this.AutoScan = autoScan;
+
+                int scanInterval = 0;
+                bool parsescanInterval = int.TryParse(scanIntervalstring, out scanInterval);
+
+                if (parsescanInterval)
+                    this.ScanInterval = scanInterval;
+
+                foreach (var folder in folders)
+                {
+                    var folderInfo = new DirectoryInfo(folder);
+
+                    if (!folderInfo.Exists)
+                    {
+                        Console.WriteLine($"Warning: folder to monitor doesnt exist. Path: {folderInfo.FullName}");
+                        continue;
+                    }
+
+                    Directories.Add(folderInfo);
+                }
+
+                Console.WriteLine($"Automatic scan interval: {ScanInterval}");
+                Console.WriteLine($"Enable auto scan = {AutoScan}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading Directory monitor info from appsettings.json. " +
+                    $"Error: {ex.Message}");
+            }           
+        }
 
         async Task StartMonitor()
         {
-            var watch = new Stopwatch();
-            watch.Start();
+            await ScanMonitoredFolders();
 
+            if (!AutoScan)
+                return;
+                
+            foreach (var folder in Directories)
+                ConfigureFileWatcher(folder);
+
+            _scanEventTimer.Start();
+        }
+
+        async Task ScanMonitoredFolders()
+        {
             using (var scope = _scopeFactory.CreateScope())
             {
                 var monitoredFolderService = scope.ServiceProvider.GetRequiredService<IMonitoredFolderService>();
 
-                List<Task> tasks = new List<Task>();
-
                 foreach (var folder in Directories)
-                {
-                    tasks.Add(monitoredFolderService.ScanMonitoredFolder(folder));
-
-                    ConfigureFileWatcher(folder);
-                }
-
-                await Task.WhenAll(tasks);
+                    await monitoredFolderService.ScanMonitoredFolder(folder);
             }
-
-            watch.Stop();
-            Console.WriteLine($"Start monitor service took {watch.ElapsedMilliseconds}ms");
         }
 
         void StopMonitor()
@@ -72,8 +117,9 @@ namespace WebApi.Services.HostedServices
             {
                 watcher.EnableRaisingEvents = false;
             }
-        }
 
+            _scanEventTimer.Stop();
+        }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
@@ -86,7 +132,6 @@ namespace WebApi.Services.HostedServices
             return Task.Run(StopMonitor);
         }
 
-        // Define the event handlers.  
         public async void OnChanged(object source, FileSystemEventArgs e)
         {
             var fileInfo = new FileInfo(e.FullPath);
@@ -107,11 +152,25 @@ namespace WebApi.Services.HostedServices
 
         }
 
-        public void OnRenamed(object source, RenamedEventArgs e)
+        public async void TriggerAutomaticScan(object sender, ElapsedEventArgs e)
         {
-            Console.WriteLine(" {0} renamed to {1}", e.OldFullPath, e.FullPath);
+            try
+            {
+                if (AutoScanIsRunning)
+                    return;
 
-            // TODO logic to streamline interactions when renaming folders etc
+                AutoScanIsRunning = true;
+                Console.WriteLine($"Running automatic scan");
+
+                await ScanMonitoredFolders();
+
+                AutoScanIsRunning = false;
+            }
+            catch (Exception ex)
+            {
+                AutoScanIsRunning = false;
+                Console.WriteLine($"Error during automatic scan: {ex.Message}");
+            }
         }
 
         void ConfigureFileWatcher(DirectoryInfo folder)
@@ -140,7 +199,5 @@ namespace WebApi.Services.HostedServices
             //Start monitoring.  
             watcher.EnableRaisingEvents = true;
         }
-
-
     }
 }

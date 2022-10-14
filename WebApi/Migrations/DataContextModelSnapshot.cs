@@ -15,7 +15,7 @@ namespace WebApi.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "6.0.9");
+            modelBuilder.HasAnnotation("ProductVersion", "6.0.10");
 
             modelBuilder.Entity("WebApi.Entities.CopyJob", b =>
                 {
@@ -117,6 +117,23 @@ namespace WebApi.Migrations
                     b.ToTable("FFolders");
                 });
 
+            modelBuilder.Entity("WebApi.Entities.FolderScanJob", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FFolderId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("TimeAdded")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FoldersScanJob");
+                });
+
             modelBuilder.Entity("WebApi.Entities.FolderToMonitor", b =>
                 {
                     b.Property<int>("Id")
@@ -152,6 +169,34 @@ namespace WebApi.Migrations
                     b.ToTable("FoldersToMonitor");
                 });
 
+            modelBuilder.Entity("WebApi.Entities.UniqueFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ArchivedFilePath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("FFileId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FullPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Versions")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FFileId");
+
+                    b.ToTable("UniqueFiles");
+                });
+
             modelBuilder.Entity("WebApi.Entities.FFile", b =>
                 {
                     b.HasOne("WebApi.Entities.FFolder", "FFolder")
@@ -170,6 +215,15 @@ namespace WebApi.Migrations
                         .HasForeignKey("FolderToMonitorId");
 
                     b.Navigation("FolderToMonitor");
+                });
+
+            modelBuilder.Entity("WebApi.Entities.UniqueFile", b =>
+                {
+                    b.HasOne("WebApi.Entities.FFile", "FFile")
+                        .WithMany()
+                        .HasForeignKey("FFileId");
+
+                    b.Navigation("FFile");
                 });
 
             modelBuilder.Entity("WebApi.Entities.FFolder", b =>

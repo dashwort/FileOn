@@ -88,8 +88,6 @@ namespace WebApi.Services.HostedServices
                         folderEvent.Folder.FullName, out FolderInUseEvent value);
 
                     success = _foldersInUse.TryAdd(folderEvent.Folder.FullName, folderEvent);
-
-                    Console.WriteLine($"Warning key was already present, deleted and added {folderEvent.Folder.FullName} to folder in use dictionary");
                 }
             }
             catch (Exception ex)
@@ -127,7 +125,12 @@ namespace WebApi.Services.HostedServices
             if (IsRunning)
                 return;
             else
-                IsRunning = true;
+                await ProcessJobs();
+        }
+
+        async Task ProcessJobs()
+        {
+            IsRunning = true;
 
             using (var scope = _scopeFactory.CreateScope())
             {
@@ -163,25 +166,26 @@ namespace WebApi.Services.HostedServices
                             if (checksumOfCopiedFile == ffile.Hash)
                             {
                                 job.processed = true;
-                                Console.WriteLine($"Verified copy job with ID: {job.Id}, path {job.PathToFile}");
 
                                 _context.Remove(job);
                                 _context.SaveChanges();
                                 continue;
                             }
-                            else
-                            {
-                                // TODO handle this edge case
-                                //File.Delete(job.PathToFile);
-                                job.Retries++;
 
-                                Console.WriteLine($"Warning line 177 in FileTransferservices");
-                            }
+                            job.Retries++;
 
                         }
                         else
                         {
                             job.Retries++;
+
+                            if (job.Retries > 100)
+                            {
+                                _context.Remove(job);
+                                _context.SaveChanges();
+
+                                continue;
+                            }
                         }
 
                         _context.Update(job);

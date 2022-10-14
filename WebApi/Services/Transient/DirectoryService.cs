@@ -132,12 +132,10 @@ namespace WebApi.Services.Transient
                 folderEvent.FolderId = ffolder.Id;
 
             DirectoryMonitor.DirectoryActivity?.Invoke(folderEvent, EventArgs.Empty);
-            Console.WriteLine($"raised folder event {file.Directory.FullName}");
         }
 
         public async Task ScanForFFolderChanges(FFolder folder)
         {
-            Console.WriteLine($"Scanning folder: {folder.Path} for changes");
             var fo = await _context.FFolders
                 .Include(x => x.FFiles)
                 .Where(x => x.Path == folder.Path).FirstOrDefaultAsync();

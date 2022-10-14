@@ -42,7 +42,11 @@ var builder = WebApplication.CreateBuilder(args);
         .OfType<FileTransferService>()
         .First());
 
-    
+    services.AddHostedService<UniqueFileService>()
+    .AddSingleton<UniqueFileService>(x => x
+        .GetServices<IHostedService>()
+        .OfType<UniqueFileService>()
+        .First());
 
 }
 

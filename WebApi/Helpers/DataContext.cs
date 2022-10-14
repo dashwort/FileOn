@@ -28,4 +28,5 @@ public class DataContext : DbContext
     public DbSet<FFolder> FFolders { get; set; }
     public DbSet<FolderToMonitor> FoldersToMonitor { get; set; }
     public DbSet<FolderScanJob> FoldersScanJob { get; set; }
+    public DbSet<UniqueFile> UniqueFiles { get; set; }
 }

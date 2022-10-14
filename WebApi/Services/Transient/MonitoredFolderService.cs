@@ -82,6 +82,8 @@ namespace WebApi.Services.Transient
             }
 
             await Task.WhenAll(folders);
+
+            Console.WriteLine($"Finishing scanning monitored folder: {folder.FullName}");
         }
     }
 }
